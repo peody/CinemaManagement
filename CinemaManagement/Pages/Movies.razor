@@ -1,0 +1,83 @@
+﻿@page "/movies"
+@using CinemaManagement.Models
+@using CinemaManagement.Data
+@using Microsoft.EntityFrameworkCore
+@inject CinemaDbContext DbContext
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1" Class="my-4">Quản lý phim</RadzenText>
+
+<RadzenButton Icon="add_circle_outline" Text="Thêm phim mới" Click="@((args) => OpenMovieDialog())" Class="mb-4" />
+
+<RadzenDataGrid Data="@movies" TItem="Movie" AllowFiltering="true" AllowColumnResize="true"
+                AllowSorting="true" PageSize="10" AllowPaging="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="Movie" Property="MovieId" Title="ID" Width="70px" />
+        <RadzenDataGridColumn TItem="Movie" Property="Title" Title="Tên phim" />
+        <RadzenDataGridColumn TItem="Movie" Property="Genre" Title="Thể loại" />
+        <RadzenDataGridColumn TItem="Movie" Property="Duration" Title="Thời lượng" />
+        <RadzenDataGridColumn TItem="Movie" Property="ReleaseDate" Title="Ngày khởi chiếu">
+            <Template Context="movie">
+                @movie.ReleaseDate.ToShortDateString()
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Movie" Property="Status" Title="Trạng thái">
+            <Template Context="movie">
+                <RadzenBadge BadgeStyle="@(movie.Status ? BadgeStyle.Success : BadgeStyle.Danger)"
+                             Text="@(movie.Status ? "Đang chiếu" : "Ngừng chiếu")" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Movie" Title="Thao tác" Width="200px">
+            <Template Context="movie">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Class="mr-1"
+                              Click="@((args) => OpenMovieDialog(movie))" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger"
+                              Click="@((args) => DeleteMovie(movie))" />
+            </Template>
+        </RadzenDataGridColumn>
+
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private IList<Movie> movies;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMovies();
+    }
+
+    private async Task LoadMovies()
+    {
+        movies = await DbContext.Movies.ToListAsync();
+    }
+
+    private async Task OpenMovieDialog(Movie movie = null)
+    {
+        var result = await DialogService.OpenAsync<MovieDialog>("Chi tiết phim",
+            new Dictionary<string, object> { { "Movie", movie } },
+            new DialogOptions { Width = "700px", Height = "570px" });
+
+        if (result != null)
+        {
+            await LoadMovies();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task DeleteMovie(Movie movie)
+    {
+        var confirm = await DialogService.Confirm("Bạn có chắc chắn muốn xóa phim này?",
+            "Xác nhận xóa",
+            new ConfirmOptions { OkButtonText = "Có", CancelButtonText = "Không" });
+
+        if (confirm ?? false)
+        {
+            DbContext.Movies.Remove(movie);
+            await DbContext.SaveChangesAsync();
+            await LoadMovies();
+            NotificationService.Notify(NotificationSeverity.Success, "Thành công", "Đã xóa phim");
+        }
+    }
+}

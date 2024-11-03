@@ -1,0 +1,124 @@
+﻿@using CinemaManagement.Data
+@using CinemaManagement.Models
+// Pages/MovieDialog.razor
+@inject CinemaDbContext DbContext
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenTemplateForm TItem="Movie" Data="@movie" Submit="@SaveMovie">
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Tên phim" />
+            <RadzenTextBox @bind-Value="@movie.Title" Class="w-100" Name="Title" />
+            <RadzenRequiredValidator Component="Title" Text="Tên phim là bắt buộc" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Thể loại" />
+            <RadzenTextBox @bind-Value="@movie.Genre" Class="w-100" Name="Genre" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Đạo diễn" />
+            <RadzenTextBox @bind-Value="@movie.Director" Class="w-100" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Thời lượng (phút)" />
+            <RadzenNumeric @bind-Value="@movie.Duration" Class="w-100" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Ngày khởi chiếu" />
+            <RadzenDatePicker @bind-Value="@movie.ReleaseDate" Class="w-100" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Trạng thái" />
+            <RadzenSwitch @bind-Value="@movie.Status" />
+        </div>
+
+        <div class="col-12 mb-3">
+            <RadzenLabel Text="Mô tả" />
+            <RadzenTextArea @bind-Value="@movie.Description" Class="w-100" Rows="3" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="URL Ảnh" />
+            <RadzenTextBox @bind-Value="@movie.ImageUrl" Class="w-100" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="URL Trailer" />
+            <RadzenTextBox @bind-Value="@movie.TrailerUrl" Class="w-100" />
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12 text-center">
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Lưu" ButtonStyle="ButtonStyle.Primary" Class="mr-2" />
+            <RadzenButton Text="Hủy" ButtonStyle="ButtonStyle.Light" Click="@Cancel" />
+        </div>
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter]
+    public Movie Movie { get; set; }
+
+    private Movie movie = new Movie();
+
+    protected override void OnInitialized()
+    {
+        if (Movie != null)
+        {
+            movie = new Movie
+                {
+                    MovieId = Movie.MovieId,
+                    Title = Movie.Title,
+                    Description = Movie.Description,
+                    Duration = Movie.Duration,
+                    ReleaseDate = Movie.ReleaseDate,
+                    Genre = Movie.Genre,
+                    Director = Movie.Director,
+                    ImageUrl = Movie.ImageUrl,
+                    TrailerUrl = Movie.TrailerUrl,
+                    Status = Movie.Status
+                };
+        }
+        else
+        {
+            movie.ReleaseDate = DateTime.Now;
+            movie.Status = true;
+        }
+    }
+
+    private async Task SaveMovie()
+    {
+        try
+        {
+            if (movie.MovieId == 0)
+            {
+                DbContext.Movies.Add(movie);
+                await DbContext.SaveChangesAsync();
+                NotificationService.Notify(NotificationSeverity.Success, "Thành công", "Thêm phim mới thành công");
+            }
+            else
+            {
+                DbContext.Movies.Update(movie);
+                await DbContext.SaveChangesAsync();
+                NotificationService.Notify(NotificationSeverity.Success, "Thành công", "Cập nhật phim thành công");
+            }
+            DialogService.Close(movie);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Lỗi", ex.Message);
+        }
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(null);
+    }
+}

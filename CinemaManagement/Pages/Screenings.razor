@@ -1,0 +1,95 @@
+﻿// Pages/Screenings.razor
+@page "/screenings"
+@using CinemaManagement.Models
+@using CinemaManagement.Data
+@using Microsoft.EntityFrameworkCore
+@inject CinemaDbContext DbContext
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1" Class="my-4">Quản lý lịch chiếu</RadzenText>
+
+<RadzenButton Icon="add_circle_outline" Text="Thêm lịch chiếu" Click="@((args) =>OpenScreeningDialog())" Class="mb-4" />
+
+<RadzenDataGrid Data="@screenings" TItem="Screening" AllowFiltering="true" AllowColumnResize="true"
+                AllowSorting="true" PageSize="10" AllowPaging="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="Screening" Property="ScreeningId" Title="ID" Width="70px" />
+        <RadzenDataGridColumn TItem="Screening" Property="Movie.Title" Title="Phim" />
+        <RadzenDataGridColumn TItem="Screening" Property="Theater.TheaterName" Title="Phòng chiếu" />
+        <RadzenDataGridColumn TItem="Screening" Property="StartTime" Title="Thời gian bắt đầu">
+            <Template Context="screening">
+                @screening.StartTime.ToString("dd/MM/yyyy HH:mm")
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Screening" Property="EndTime" Title="Thời gian kết thúc">
+            <Template Context="screening">
+                @screening.EndTime.ToString("dd/MM/yyyy HH:mm")
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Screening" Property="Price" Title="Giá vé">
+            <Template Context="screening">
+                @screening.Price.ToString("N0") VNĐ
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Screening" Property="Status" Title="Trạng thái">
+            <Template Context="screening">
+                <RadzenBadge BadgeStyle="@(screening.Status ? BadgeStyle.Success : BadgeStyle.Danger)"
+                             Text="@(screening.Status ? "Còn vé" : "Hết vé")" />
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Screening" Title="Thao tác" Width="200px">
+            <Template Context="screening">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Class="mr-1"
+                              Click="@(() => OpenScreeningDialog(screening))" />
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger"
+                              Click="@(() => DeleteScreening(screening))" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    private IList<Screening> screenings;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadScreenings();
+    }
+
+    private async Task LoadScreenings()
+    {
+        screenings = await DbContext.Screenings
+            .Include(s => s.Movie)
+            .Include(s => s.Theater)
+            .ToListAsync();
+    }
+
+    private async Task OpenScreeningDialog(Screening screening = null)
+    {
+        var result = await DialogService.OpenAsync<ScreeningDialog>("Chi tiết lịch chiếu",
+            new Dictionary<string, object> { { "Screening", screening } },
+            new DialogOptions { Width = "700px", Height = "570px" });
+
+        if (result != null)
+        {
+            await LoadScreenings();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task DeleteScreening(Screening screening)
+    {
+        var confirm = await DialogService.Confirm("Bạn có chắc chắn muốn xóa lịch chiếu này?",
+            "Xác nhận xóa",
+            new ConfirmOptions { OkButtonText = "Có", CancelButtonText = "Không" });
+
+        if (confirm ?? false)
+        {
+            DbContext.Screenings.Remove(screening);
+            await DbContext.SaveChangesAsync();
+            await LoadScreenings();
+            NotificationService.Notify(NotificationSeverity.Success, "Thành công", "Đã xóa lịch chiếu");
+        }
+    }
+}

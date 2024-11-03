@@ -1,0 +1,120 @@
+﻿@using CinemaManagement.Data
+@using CinemaManagement.Models
+@using Microsoft.EntityFrameworkCore
+// Pages/ScreeningDialog.razor
+@inject CinemaDbContext DbContext
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenTemplateForm TItem="Screening" Data="@screening" Submit="@SaveScreening">
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Phim" />
+            <RadzenDropDown @bind-Value="@screening.MovieId" Class="w-100"
+                            Data="@movies" TextProperty="Title" ValueProperty="MovieId"
+                            Name="MovieId" />
+            <RadzenRequiredValidator Component="MovieId" Text="Vui lòng chọn phim" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Phòng chiếu" />
+            <RadzenDropDown @bind-Value="@screening.TheaterId" Class="w-100"
+                            Data="@theaters" TextProperty="TheaterName" ValueProperty="TheaterId"
+                            Name="TheaterId" />
+            <RadzenRequiredValidator Component="TheaterId" Text="Vui lòng chọn phòng chiếu" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Thời gian bắt đầu" />
+            <RadzenDatePicker @bind-Value="@screening.StartTime" ShowTime="true"
+                              DateFormat="dd/MM/yyyy HH:mm" Class="w-100" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Thời gian kết thúc" />
+            <RadzenDatePicker @bind-Value="@screening.EndTime" ShowTime="true"
+                              DateFormat="dd/MM/yyyy HH:mm" Class="w-100" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Giá vé" />
+            <RadzenNumeric @bind-Value="@screening.Price" Class="w-100" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <RadzenLabel Text="Trạng thái" />
+            <RadzenSwitch @bind-Value="@screening.Status" />
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12 text-center">
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Lưu" ButtonStyle="ButtonStyle.Primary" Class="mr-2" />
+            <RadzenButton Text="Hủy" ButtonStyle="ButtonStyle.Light" Click="@Cancel" />
+        </div>
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter]
+    public Screening Screening { get; set; }
+
+    private Screening screening = new Screening();
+    private IList<Movie> movies;
+    private IList<Theater> theaters;
+
+    protected override async Task OnInitializedAsync()
+    {
+        movies = await DbContext.Movies.ToListAsync();
+        theaters = await DbContext.Theaters.ToListAsync();
+
+        if (Screening != null)
+        {
+            screening = new Screening
+                {
+                    ScreeningId = Screening.ScreeningId,
+                    MovieId = Screening.MovieId,
+                    TheaterId = Screening.TheaterId,
+                    StartTime = Screening.StartTime,
+                    EndTime = Screening.EndTime,
+                    Price = Screening.Price,
+                    Status = Screening.Status
+                };
+        }
+        else
+        {
+            screening.StartTime = DateTime.Now;
+            screening.EndTime = DateTime.Now.AddHours(2);
+            screening.Status = true;
+        }
+    }
+
+    private async Task SaveScreening()
+    {
+        try
+        {
+            if (screening.ScreeningId == 0)
+            {
+                DbContext.Screenings.Add(screening);
+                await DbContext.SaveChangesAsync();
+                NotificationService.Notify(NotificationSeverity.Success, "Thành công", "Thêm lịch chiếu mới thành công");
+            }
+            else
+            {
+                DbContext.Screenings.Update(screening);
+                await DbContext.SaveChangesAsync();
+                NotificationService.Notify(NotificationSeverity.Success, "Thành công", "Cập nhật lịch chiếu thành công");
+            }
+            DialogService.Close(screening);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Lỗi", ex.Message);
+        }
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(null);
+    }
+}
